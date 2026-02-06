@@ -1,0 +1,46 @@
+steps:
+  - name: gcr.io/cloud-builders/gcloud
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        if [ "$BRANCH_NAME" = "master" ]; then
+          ENV="prod"
+        elif [ "$BRANCH_NAME" = "stag" ]; then
+          ENV="staging"
+        else
+          ENV="dev"
+        fi
+
+        echo "ENV=$ENV" > /workspace/env.sh
+        echo "Detected environment: $ENV"
+
+        gcloud source repos clone configs /workspace/dockerignore/gcr_configs
+        cp /workspace/dockerignore/gcr_configs/yt-relay/$ENV/config.yml /workspace/configs/config.yml
+
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -t
+      - asia-east1-docker.pkg.dev/mirror-tv-275709/yt-relay/yt-relay:$BRANCH_NAME-$SHORT_SHA
+      - .
+
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - asia-east1-docker.pkg.dev/mirror-tv-275709/yt-relay/yt-relay:$BRANCH_NAME-$SHORT_SHA
+
+  - name: gcr.io/cloud-builders/gcloud
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        source /workspace/env.sh
+        gcloud run deploy yt-relay-$ENV \
+          --image=asia-east1-docker.pkg.dev/mirror-tv-275709/yt-relay/yt-relay:$BRANCH_NAME-$SHORT_SHA \
+          --region=asia-east1 \
+          --platform=managed \
+          --port=8080
+
+images:
+  - asia-east1-docker.pkg.dev/mirror-tv-275709/yt-relay/yt-relay:$BRANCH_NAME-$SHORT_SHA
