@@ -12,8 +12,8 @@ steps:
           ENV="dev"
         fi
 
-        echo "ENV=$ENV" > /workspace/env.sh
-        echo "Detected environment: $ENV"
+        echo "ENV=$$ENV" > /workspace/env.sh
+        echo "Detected environment: $$ENV"
 
         gcloud source repos clone configs /workspace/dockerignore/gcr_configs
         cp /workspace/dockerignore/gcr_configs/${_IMAGE_NAME}/$$ENV/config.yml /workspace/configs/config.yml
