@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -124,6 +125,15 @@ func saveCache(cacheConf config.Cache, cacheProvider cache.Rediser, apiLogger *l
 // Set sets the routing for the gin engine
 // TODO move whitelist to YouTube relay service
 func Set(r *gin.Engine, appName string, relayService ytrelay.VideoRelay, whitelist ytrelay.APIWhitelist, cacheConf config.Cache, cacheProvider cache.Rediser) error {
+
+	// rewrite /api/youtube/* to /youtube/v3/*
+	r.Use(func(c *gin.Context) {
+		if strings.HasPrefix(c.Request.URL.Path, "/api/youtube/") {
+			c.Request.URL.Path = strings.Replace(c.Request.URL.Path, "/api/youtube/", "/youtube/v3/", 1)
+			r.HandleContext(c)
+			c.Abort()
+		}
+	})
 
 	// health check api
 	// As more resources and component are used, they should be checked in the api
