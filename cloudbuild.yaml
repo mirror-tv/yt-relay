@@ -1,23 +1,4 @@
 steps:
-  - name: gcr.io/cloud-builders/gcloud
-    entrypoint: bash
-    args:
-      - -c
-      - |
-        if [ "$BRANCH_NAME" = "master" ]; then
-          ENV="prod"
-        elif [ "$BRANCH_NAME" = "stag" ]; then
-          ENV="staging"
-        else
-          ENV="dev"
-        fi
-
-        echo "ENV=$$ENV" > /workspace/env.sh
-        echo "Detected environment: $$ENV"
-
-        gcloud source repos clone configs /workspace/dockerignore/gcr_configs
-        cp /workspace/dockerignore/gcr_configs/${_IMAGE_NAME}/$$ENV/config.yml /workspace/configs/config.yml
-
   - name: gcr.io/cloud-builders/docker
     args:
       - build

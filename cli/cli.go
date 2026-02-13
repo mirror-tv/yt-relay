@@ -45,16 +45,14 @@ func Start(cmds map[string]*Command) error {
 	_ = ytrelayFlagSet.Parse(args)
 	args = ytrelayFlagSet.Args()
 
-	var err error
-	if c.ConfigFile != "" {
-		c.CFG, err = config.LoadFile(c.ConfigFile)
-		if err != nil {
-			log.Printf("Failed to load config file: %v", err)
-			return errors.New("failed to load config file")
-		}
-		c.CFG.Address = c.Address
-		c.CFG.Port = c.Port
+	cfg, err := config.Load(c.ConfigFile)
+	if err != nil {
+		log.Printf("Failed to load config: %v", err)
+		return errors.New("failed to load config")
 	}
+	cfg.Address = c.Address
+	cfg.Port = c.Port
+	c.CFG = cfg
 
 	if err := cmd.Main(args, c); err != nil {
 		log.Print(err)
