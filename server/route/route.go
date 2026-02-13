@@ -37,11 +37,9 @@ func getResponseCacheTTL(apiLogger *log.Entry, cacheConf config.Cache, request h
 	}
 
 	if headerTTL, isPresenting, err := getHeaderTTL(apiLogger, request); err != nil {
-		if isPresenting {
-			ttl = headerTTL
-		}
-	} else {
 		apiLogger.Error(err)
+	} else if isPresenting {
+		ttl = headerTTL
 	}
 
 	return ttl, cacheConf.DisabledAPIs[request.RequestURI]
