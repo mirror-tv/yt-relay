@@ -24,7 +24,7 @@ func Cache(namespace string, cacheConf config.Cache, cacheProvider cache.Rediser
 			return
 		}
 		// read cache
-		uri := c.Request.RequestURI
+		uri := c.Request.URL.String()
 		key, err := cache.GetCacheKey(namespace, uri)
 		if err != nil {
 			err = errors.Wrap(err, "Fail to create cache key in cache middleware")
