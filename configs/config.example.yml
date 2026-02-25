@@ -1,5 +1,6 @@
 appName: "mtv-yt-relay"     # env: APP_NAME
 apiKey: ""                  # env: API_KEY
+cmsUrl: ""                  # env: CMS_URL (CMS GraphQL endpoint for playlist whitelist)
 
 cache:
   isEnabled: true                          # env: CACHE_ENABLED (default: false)
@@ -41,6 +42,4 @@ whitelists:
   channelIDs:                              # env: WHITELIST_CHANNEL_IDS=id1,id2 (comma-separated, all enabled)
     "channelID1": true
     "channelID2": false
-  playlistIDs:                             # env: WHITELIST_PLAYLIST_IDS=id1,id2 (comma-separated, all enabled)
-    "playlistID1": true
-    "playlistID2": false
+  # playlistIDs are fetched from CMS (shows.playList01, playList02, trailerPlaylist) at startup
