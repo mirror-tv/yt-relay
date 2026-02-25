@@ -18,6 +18,7 @@ type Conf struct {
 	Address    string        `mapstructure:"address"`
 	ApiKey     string        `mapstructure:"apiKey"`
 	Cache      Cache         `mapstructure:"cache"`
+	CmsURL     string        `mapstructure:"cmsUrl"`
 	Port       int           `mapstructure:"port"`
 	Redis      *RedisService `mapstructure:"redis"`
 	Whitelists Whitelists    `mapstructure:"whitelists"`
@@ -104,8 +105,8 @@ func (c *Conf) Valid() bool {
 		return false
 	}
 
-	if len(c.Whitelists.PlaylistIDs) == 0 {
-		log.Error("whitelist's playlist id cannot be empty")
+	if c.CmsURL == "" {
+		log.Error("cmsUrl cannot be empty")
 		return false
 	}
 
@@ -279,9 +280,6 @@ func loadComplexEnvVars(cfg *Conf) error {
 	if s := os.Getenv("WHITELIST_CHANNEL_IDS"); s != "" {
 		cfg.Whitelists.ChannelIDs = parseCSVBoolMap(s)
 	}
-	if s := os.Getenv("WHITELIST_PLAYLIST_IDS"); s != "" {
-		cfg.Whitelists.PlaylistIDs = parseCSVBoolMap(s)
-	}
 
 	// Cache extras
 	if s := os.Getenv("CACHE_DISABLED_APIS"); s != "" {
@@ -367,6 +365,7 @@ func Load(configFile string) (*Conf, error) {
 	_ = v.BindEnv("apiKey", "API_KEY")
 	_ = v.BindEnv("address", "ADDRESS")
 	_ = v.BindEnv("port", "PORT")
+	_ = v.BindEnv("cmsUrl", "CMS_URL")
 	_ = v.BindEnv("cache.isEnabled", "CACHE_ENABLED")
 	_ = v.BindEnv("cache.ttl", "CACHE_TTL")
 	_ = v.BindEnv("cache.errorTtl", "CACHE_ERROR_TTL")
