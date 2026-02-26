@@ -2,51 +2,54 @@ package config
 
 import (
 	"errors"
-	"io/ioutil"
+	"fmt"
+	"os"
 	"regexp"
+	"strconv"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
-
-	"gopkg.in/yaml.v2"
+	"github.com/spf13/viper"
 )
 
 type Conf struct {
-	// AppName is only allowed tt have alphanumeric, dash, and comma.
-	AppName    string `yaml:"appName"`
-	Address    string
-	ApiKey     string `yaml:"apiKey"`
-	Cache      Cache  `yaml:"cache"`
-	Port       int
-	Redis      *RedisService `yaml:"redis"`
-	Whitelists Whitelists    `yaml:"whitelists"`
+	// AppName is only allowed to have alphanumeric, dash, and dot.
+	AppName    string        `mapstructure:"appName"`
+	Address    string        `mapstructure:"address"`
+	ApiKey     string        `mapstructure:"apiKey"`
+	Cache      Cache         `mapstructure:"cache"`
+	CmsURL     string        `mapstructure:"cmsUrl"`
+	Port       int           `mapstructure:"port"`
+	Redis      *RedisService `mapstructure:"redis"`
+	Whitelists Whitelists    `mapstructure:"whitelists"`
 }
 
 // Whitelists are maps, key is the whitelist string, value determines if it should be effective
 type Whitelists struct {
-	ChannelIDs  map[string]bool `yaml:"channelIDs"`
-	PlaylistIDs map[string]bool `yaml:"playlistIDs"`
+	ChannelIDs  map[string]bool `mapstructure:"channelIDs"`
+	PlaylistIDs map[string]bool `mapstructure:"playlistIDs"`
 }
 
 type Cache struct {
-	IsEnabled    bool            `yaml:"isEnabled"`
-	DisabledAPIs map[string]bool `yaml:"disabledApis"`
-	TTL          int             `yaml:"ttl"`
-	ErrorTTL     int             `yaml:"errorTtl"`
-	OverwriteTTL map[string]int  `yaml:"overwriteTtl"`
+	IsEnabled    bool            `mapstructure:"isEnabled"`
+	DisabledAPIs map[string]bool `mapstructure:"disabledApis"`
+	TTL          int             `mapstructure:"ttl"`
+	ErrorTTL     int             `mapstructure:"errorTtl"`
+	OverwriteTTL map[string]int  `mapstructure:"overwriteTtl"`
 }
 
 type OverwriteTTL struct {
-	TTL       int    `yaml:"ttl"`
-	PrefixAPI string `yaml:"apiPrefix"`
+	TTL       int    `mapstructure:"ttl"`
+	PrefixAPI string `mapstructure:"apiPrefix"`
 }
 
 // RedisService defines the conf of redis for cache. User should find the right configuration according to the type
 type RedisService struct {
-	Type           RedisType              `yaml:"type"`
-	Cluster        *RedisCluster          `yaml:"cluster"`
-	SingleInstance *RedisSingleInstance   `yaml:"single"`
-	Sentinel       *RedisSentinel         `yaml:"sentinel"`
-	Replica        *RedisReplicaInstances `yaml:"replica"`
+	Type           RedisType              `mapstructure:"type"`
+	Cluster        *RedisCluster          `mapstructure:"cluster"`
+	SingleInstance *RedisSingleInstance   `mapstructure:"single"`
+	Sentinel       *RedisSentinel         `mapstructure:"sentinel"`
+	Replica        *RedisReplicaInstances `mapstructure:"replica"`
 }
 
 type RedisType string
@@ -59,29 +62,29 @@ const (
 )
 
 type RedisCluster struct {
-	Addrs    []RedisAddress `yaml:"addresses"`
-	Password string         `yaml:"password"`
+	Addrs    []RedisAddress `mapstructure:"addresses"`
+	Password string         `mapstructure:"password"`
 }
 
 type RedisSingleInstance struct {
-	Instance RedisAddress `yaml:"instance"`
-	Password string       `yaml:"password"`
+	Instance RedisAddress `mapstructure:"instance"`
+	Password string       `mapstructure:"password"`
 }
 
 type RedisSentinel struct {
-	Addrs    []RedisAddress `yaml:"addresses"`
-	Password string         `yaml:"password"`
+	Addrs    []RedisAddress `mapstructure:"addresses"`
+	Password string         `mapstructure:"password"`
 }
 
 type RedisReplicaInstances struct {
-	MasterAddrs []RedisAddress `yaml:"writers"`
-	SlaveAddrs  []RedisAddress `yaml:"readers"`
-	Password    string         `yaml:"password"`
+	MasterAddrs []RedisAddress `mapstructure:"writers"`
+	SlaveAddrs  []RedisAddress `mapstructure:"readers"`
+	Password    string         `mapstructure:"password"`
 }
 
 type RedisAddress struct {
-	Addr string `yaml:"address"`
-	Port int    `yaml:"port"`
+	Addr string `mapstructure:"address"`
+	Port int    `mapstructure:"port"`
 }
 
 func (c *Conf) Valid() bool {
@@ -102,8 +105,8 @@ func (c *Conf) Valid() bool {
 		return false
 	}
 
-	if len(c.Whitelists.PlaylistIDs) == 0 {
-		log.Error("whitelist's playlist id cannot be empty")
+	if c.CmsURL == "" {
+		log.Error("cmsUrl cannot be empty")
 		return false
 	}
 
@@ -215,29 +218,178 @@ func (c *Conf) Valid() bool {
 	return true
 }
 
-// LoadFile attempts to load the configuration file stored at the path
-// and returns the configuration. On error, it returns nil.
-func LoadFile(path string) (*Conf, error) {
-	log.Printf("loading configuration file from %s", path)
-	if path == "" {
-		return nil, errors.New("invalid path")
+// parseAddresses parses a comma-separated list of "host:port" into []RedisAddress.
+func parseAddresses(s string) ([]RedisAddress, error) {
+	var addrs []RedisAddress
+	for _, entry := range strings.Split(s, ",") {
+		entry = strings.TrimSpace(entry)
+		if entry == "" {
+			continue
+		}
+		parts := strings.SplitN(entry, ":", 2)
+		if len(parts) != 2 {
+			return nil, fmt.Errorf("invalid address format %q, expected host:port", entry)
+		}
+		port, err := strconv.Atoi(parts[1])
+		if err != nil {
+			return nil, fmt.Errorf("invalid port in address %q: %v", entry, err)
+		}
+		addrs = append(addrs, RedisAddress{Addr: parts[0], Port: port})
 	}
-
-	body, err := ioutil.ReadFile(path)
-	if err != nil {
-		return nil, errors.New("could not read configuration file")
-	}
-
-	return LoadConfig(body)
+	return addrs, nil
 }
 
-// LoadConfig attempts to load the configuration from a byte slice.
-// On error, it returns nil.
-func LoadConfig(config []byte) (*Conf, error) {
-	var cfg = &Conf{}
-	err := yaml.Unmarshal(config, &cfg)
-	if err != nil {
-		return nil, errors.New("failed to unmarshal configuration: " + err.Error())
+// parseCSVMap parses "key1:val1,key2:val2" into map[string]int.
+func parseCSVMap(s string) (map[string]int, error) {
+	m := make(map[string]int)
+	for _, entry := range strings.Split(s, ",") {
+		entry = strings.TrimSpace(entry)
+		if entry == "" {
+			continue
+		}
+		parts := strings.SplitN(entry, ":", 2)
+		if len(parts) != 2 {
+			return nil, fmt.Errorf("invalid format %q, expected key:value", entry)
+		}
+		val, err := strconv.Atoi(strings.TrimSpace(parts[1]))
+		if err != nil {
+			return nil, fmt.Errorf("invalid integer value in %q: %v", entry, err)
+		}
+		m[strings.TrimSpace(parts[0])] = val
+	}
+	return m, nil
+}
+
+// parseCSVBoolMap parses "key1,key2" into map[string]bool with all values set to true.
+func parseCSVBoolMap(s string) map[string]bool {
+	m := make(map[string]bool)
+	for _, entry := range strings.Split(s, ",") {
+		entry = strings.TrimSpace(entry)
+		if entry == "" {
+			continue
+		}
+		m[entry] = true
+	}
+	return m
+}
+
+// loadComplexEnvVars populates fields that cannot be directly bound via Viper
+// (CSV-formatted whitelists, redis addresses, cache overwrite TTLs).
+func loadComplexEnvVars(cfg *Conf) error {
+	// Whitelists
+	if s := os.Getenv("WHITELIST_CHANNEL_IDS"); s != "" {
+		cfg.Whitelists.ChannelIDs = parseCSVBoolMap(s)
+	}
+
+	// Cache extras
+	if s := os.Getenv("CACHE_DISABLED_APIS"); s != "" {
+		cfg.Cache.DisabledAPIs = parseCSVBoolMap(s)
+	}
+	if s := os.Getenv("CACHE_OVERWRITE_TTL"); s != "" {
+		m, err := parseCSVMap(s)
+		if err != nil {
+			return fmt.Errorf("failed to parse CACHE_OVERWRITE_TTL: %v", err)
+		}
+		cfg.Cache.OverwriteTTL = m
+	}
+
+	// Redis
+	if redisType := os.Getenv("REDIS_TYPE"); redisType != "" {
+		password := os.Getenv("REDIS_PASSWORD")
+		cfg.Redis = &RedisService{Type: RedisType(redisType)}
+
+		switch RedisType(redisType) {
+		case Single:
+			addrs, err := parseAddresses(os.Getenv("REDIS_ADDRESSES"))
+			if err != nil {
+				return fmt.Errorf("failed to parse REDIS_ADDRESSES: %v", err)
+			}
+			if len(addrs) == 0 {
+				return errors.New("REDIS_ADDRESSES is required for single redis type")
+			}
+			cfg.Redis.SingleInstance = &RedisSingleInstance{
+				Instance: addrs[0],
+				Password: password,
+			}
+		case Cluster:
+			addrs, err := parseAddresses(os.Getenv("REDIS_ADDRESSES"))
+			if err != nil {
+				return fmt.Errorf("failed to parse REDIS_ADDRESSES: %v", err)
+			}
+			cfg.Redis.Cluster = &RedisCluster{
+				Addrs:    addrs,
+				Password: password,
+			}
+		case Sentinel:
+			addrs, err := parseAddresses(os.Getenv("REDIS_ADDRESSES"))
+			if err != nil {
+				return fmt.Errorf("failed to parse REDIS_ADDRESSES: %v", err)
+			}
+			cfg.Redis.Sentinel = &RedisSentinel{
+				Addrs:    addrs,
+				Password: password,
+			}
+		case Replica:
+			writers, err := parseAddresses(os.Getenv("REDIS_ADDRESSES"))
+			if err != nil {
+				return fmt.Errorf("failed to parse REDIS_ADDRESSES: %v", err)
+			}
+			readers, err := parseAddresses(os.Getenv("REDIS_READER_ADDRESSES"))
+			if err != nil {
+				return fmt.Errorf("failed to parse REDIS_READER_ADDRESSES: %v", err)
+			}
+			cfg.Redis.Replica = &RedisReplicaInstances{
+				MasterAddrs: writers,
+				SlaveAddrs:  readers,
+				Password:    password,
+			}
+		}
+	}
+
+	return nil
+}
+
+// Load loads configuration. When configFile is provided, it reads from the YAML file.
+// Otherwise, it reads from environment variables. Env vars always override file values
+// for simple fields (appName, apiKey, address, port, cache settings).
+func Load(configFile string) (*Conf, error) {
+	v := viper.New()
+
+	// Defaults
+	v.SetDefault("address", "0.0.0.0")
+	v.SetDefault("port", 8080)
+	v.SetDefault("cache.isEnabled", false)
+
+	// Bind environment variables for simple fields
+	_ = v.BindEnv("appName", "APP_NAME")
+	_ = v.BindEnv("apiKey", "API_KEY")
+	_ = v.BindEnv("address", "ADDRESS")
+	_ = v.BindEnv("port", "PORT")
+	_ = v.BindEnv("cmsUrl", "CMS_URL")
+	_ = v.BindEnv("cache.isEnabled", "CACHE_ENABLED")
+	_ = v.BindEnv("cache.ttl", "CACHE_TTL")
+	_ = v.BindEnv("cache.errorTtl", "CACHE_ERROR_TTL")
+
+	if configFile != "" {
+		log.Printf("loading configuration file from %s", configFile)
+		v.SetConfigFile(configFile)
+		if err := v.ReadInConfig(); err != nil {
+			return nil, fmt.Errorf("could not read configuration file: %v", err)
+		}
+	} else {
+		log.Println("loading configuration from environment variables")
+	}
+
+	cfg := &Conf{}
+	if err := v.Unmarshal(cfg); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal configuration: %v", err)
+	}
+
+	// When no config file, parse complex types from env vars
+	if configFile == "" {
+		if err := loadComplexEnvVars(cfg); err != nil {
+			return nil, err
+		}
 	}
 
 	if !cfg.Valid() {

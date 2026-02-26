@@ -1,92 +1,45 @@
-{
-  # Required
-  "apiKey": "", # apikey from YouTube
-  # Required
-  "appName": "mm-yt-relay.dev", # it will be used as the namespace in cache, and only alphanumeric, dot, and dash are allowed
-  # Optional
-  "cache": {
-      # Optional
-      "isEnabled": true,
-      # Optional
-      "disabledApis": {
-          # Optional
-          "/youtube/v3/playlistItems": true, # true means the api is disabled
-          # Optional
-          "/youtube/v3/videos": false, # false means the api is not disabled
-        },
-      # Required if isEnabled is true
-      "ttl": 1800, # the default ttl
-      ## Required if isEnabled is true
-      "errorTtl": 60, # the default ttl for error response cache
-      # Optional
-      "overwriteTtl": {
-          "/youtube/v3/playlistItems": 300, # this ttl in seconds overwrite the default ttl for the specific api
-        },
-    },
-  # Optional
-  "redis": {
-      # Required
-      "type": "cluster", # Possible values: cluster, single, sentinel, and replica
-      # Optional
-      "cluster": {
-          # Required
-          "addresses": [
-              # Required
-              { "address": "resdis.host.address", "port": 6379 },
-            ],
-          # Optional
-          "password": "password",
-        },
-      # Optional
-      "single": {
-          # Required
-          "instance": { "address": "resdis.host.address", "port": 6379 },
-          # Optional
-          "password": "password",
-        },
-      # Optional
-      "sentinel": {
-          # Required
-          "addresses": [
-              # Required
-              { "address": "resdis.host.address", "port": 6379 },
-            ],
-          # Optional
-          "password": "password",
-        },
-      # Optional
-      "replica": {
-          # Required
-          "writers": [
-              # Required
-              { "address": "resdis.host.address", "port": 6379 },
-            ],
-          # Required
-          "readers": [
-              # Required
-              { "address": "resdis.host.address", "port": 6379 },
-            ],
-          # Optional
-          "password": "password",
-        },
-    },
-  # Required
-  # specifies the whitelists
-  "whitelists": {
-      # only allows videos in these channel in search api and video api
-      "channelIDs": {
-          # Optional
-          "channelID1": true,
-          # Optional
-          "channelID2": false, # key is the whitelisted channelID. However the value represents the effectiveness it. "channelID2" won't be effective and whitelisted as its value is false.
-        },
-      # Required
-      # only allows videos in these playlist in playlistIem api
-      "playlistIDs": {
-          # Optional
-          "playlistID1": true,
-          # Optional
-          "playlistID2": false,
-        },
-    },
-}
+appName: "mtv-yt-relay"     # env: APP_NAME
+apiKey: ""                  # env: API_KEY
+cmsUrl: ""                  # env: CMS_URL (CMS GraphQL endpoint for playlist whitelist)
+
+cache:
+  isEnabled: true                          # env: CACHE_ENABLED (default: false)
+  ttl: 1800                                # env: CACHE_TTL
+  errorTtl: 60                             # env: CACHE_ERROR_TTL
+  disabledApis:                            # env: CACHE_DISABLED_APIS=path1,path2
+    "/youtube/v3/playlistItems": true
+    "/youtube/v3/videos": false
+  overwriteTtl:                            # env: CACHE_OVERWRITE_TTL=path1:300,path2:600
+    "/youtube/v3/playlistItems": 300
+
+redis:
+  type: "single"                           # env: REDIS_TYPE (single|cluster|sentinel|replica)
+  single:
+    instance:
+      address: "redis.host"
+      port: 6379
+    password: ""                           # env: REDIS_PASSWORD
+  cluster:
+    addresses:                             # env: REDIS_ADDRESSES=host1:port1,host2:port2
+      - address: "redis.host"
+        port: 6379
+    password: ""
+  sentinel:
+    addresses:                             # env: REDIS_ADDRESSES=host1:port1,host2:port2
+      - address: "redis.host"
+        port: 6379
+    password: ""
+  replica:
+    writers:                               # env: REDIS_ADDRESSES=host1:port1,host2:port2
+      - address: "redis.host"
+        port: 6379
+    readers:                               # env: REDIS_READER_ADDRESSES=host1:port1,host2:port2
+      - address: "redis.host"
+        port: 6379
+    password: ""
+
+whitelists:
+  channelIDs:                              # env: WHITELIST_CHANNEL_IDS=id1,id2 (comma-separated, all enabled)
+    "channelID1": true
+    "channelID2": false
+  # playlistIDs are fetched from CMS (shows.playList01, playList02, trailerPlaylist) at startup

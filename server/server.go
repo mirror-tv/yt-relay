@@ -52,6 +52,7 @@ func New(c config.Conf) (s *Server, err error) {
 	s = &Server{
 		APIWhitelist: &whitelist.YouTubeAPI{
 			Whitelist: c.Whitelists,
+			CmsURL:    c.CmsURL,
 		},
 		Cache:  cache,
 		conf:   &c,
