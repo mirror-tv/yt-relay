@@ -122,7 +122,7 @@ func saveCache(cacheConf config.Cache, cacheProvider cache.Rediser, apiLogger *l
 
 // Set sets the routing for the gin engine
 // TODO move whitelist to YouTube relay service
-func Set(r *gin.Engine, appName string, relayService ytrelay.VideoRelay, whitelist ytrelay.APIWhitelist, cacheConf config.Cache, cacheProvider cache.Rediser) error {
+func Set(r *gin.Engine, appName string, relayService ytrelay.VideoRelay, whitelist ytrelay.APIWhitelist, cacheConf config.Cache, cacheProvider cache.Rediser, internalToken string) error {
 
 	// rewrite /api/youtube/* to /youtube/v3/*
 	r.Use(func(c *gin.Context) {
@@ -313,8 +313,9 @@ func Set(r *gin.Engine, appName string, relayService ytrelay.VideoRelay, whiteli
 			return
 		}
 
-		// Check whitelist
-		if !whitelist.ValidatePlaylistIDs(queries.PlaylistID) {
+		// Check whitelist (skip if valid internal token is provided)
+		isInternalRequest := internalToken != "" && c.GetHeader("X-Internal-Token") == internalToken
+		if !isInternalRequest && !whitelist.ValidatePlaylistIDs(queries.PlaylistID) {
 			err = fmt.Errorf("playlistId(%s) is invalid", queries.PlaylistID)
 			apiLogger.Error(err)
 			resp := api.ErrorResp{Error: err.Error()}
