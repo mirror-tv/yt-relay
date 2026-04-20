@@ -249,6 +249,45 @@ func Set(r *gin.Engine, appName string, relayService ytrelay.VideoRelay, whiteli
 		c.JSON(http.StatusOK, resp)
 	})
 
+	// list playlists by channelID, with optional title keyword filtering and publishedAfter
+	ytRouter.GET("/playlists", func(c *gin.Context) {
+
+		apiLogger := log.WithFields(log.Fields{
+			"path": c.FullPath(),
+		})
+
+		queries, err := parseQueries(c)
+		if err != nil {
+			apiLogger.Error(err)
+			resp := api.ErrorResp{Error: err.Error()}
+			saveErrCache(cacheConf.IsEnabled, cacheConf, cacheProvider, apiLogger, appName, *c.Request, http.StatusBadRequest, resp)
+			c.AbortWithStatusJSON(http.StatusBadRequest, resp)
+			return
+		}
+
+		// Check whitelist
+		if !whitelist.ValidateChannelID(queries.ChannelID) {
+			err = fmt.Errorf("channelId(%s) is invalid", queries.ChannelID)
+			apiLogger.Error(err)
+			resp := api.ErrorResp{Error: err.Error()}
+			saveErrCache(cacheConf.IsEnabled, cacheConf, cacheProvider, apiLogger, appName, *c.Request, http.StatusBadRequest, resp)
+			c.AbortWithStatusJSON(http.StatusBadRequest, resp)
+			return
+		}
+
+		resp, err := relayService.ListPlaylists(queries)
+		if err != nil {
+			apiLogger.Error(err)
+			resp := api.ErrorResp{Error: err.Error()}
+			saveErrCache(cacheConf.IsEnabled, cacheConf, cacheProvider, apiLogger, appName, *c.Request, http.StatusInternalServerError, resp)
+			c.AbortWithStatusJSON(http.StatusInternalServerError, resp)
+			return
+		}
+
+		saveOKCache(cacheConf.IsEnabled, cacheConf, cacheProvider, apiLogger, appName, *c.Request, resp)
+		c.JSON(http.StatusOK, resp)
+	})
+
 	// list video by playlistID
 	ytRouter.GET("/playlistItems", func(c *gin.Context) {
 
