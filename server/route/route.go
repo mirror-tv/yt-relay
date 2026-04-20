@@ -324,7 +324,12 @@ func Set(r *gin.Engine, appName string, relayService ytrelay.VideoRelay, whiteli
 			return
 		}
 
-		resp, err := relayService.ListPlaylistVideos(queries)
+		var resp interface{}
+		if queries.PublishedAfter != "" {
+			resp, err = relayService.ListPlaylistVideosAfter(queries)
+		} else {
+			resp, err = relayService.ListPlaylistVideos(queries)
+		}
 		if err != nil {
 			apiLogger.Error(err)
 			resp := api.ErrorResp{Error: err.Error()}

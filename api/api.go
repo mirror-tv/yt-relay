@@ -31,3 +31,19 @@ type PlaylistInfo struct {
 type PlaylistListResponse struct {
 	Playlists []*PlaylistInfo `json:"playlists"`
 }
+
+type PlaylistItemVideo struct {
+	VideoID          string              `json:"videoId"`
+	Title            string              `json:"title"`
+	Description      string              `json:"description"`
+	VideoPublishedAt string              `json:"videoPublishedAt"`
+	PublishedAt      string              `json:"publishedAt"`
+	Thumbnails       *PlaylistThumbnails `json:"thumbnails,omitempty"`
+	VideoURL         string              `json:"videoUrl"`
+}
+
+type PlaylistItemListResponse struct {
+	PlaylistID string               `json:"playlistId"`
+	Items      []*PlaylistItemVideo `json:"items"`
+	TotalItems int                  `json:"totalItems"`
+}

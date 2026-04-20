@@ -22,6 +22,7 @@ type VideoRelay interface {
 	Search(options Options) (resp interface{}, err error)
 	ListByVideoIDs(options Options) (resp interface{}, err error)
 	ListPlaylistVideos(options Options) (resp interface{}, err error)
+	ListPlaylistVideosAfter(options Options) (resp interface{}, err error)
 	ListPlaylists(options Options) (resp interface{}, err error)
 }
 

@@ -98,6 +98,88 @@ func (s *YouTubeServiceV3) ListPlaylistVideos(options ytrelay.Options) (resp int
 	return call.Do()
 }
 
+// ListPlaylistVideosAfter fetches playlist items and stops when it encounters videos published before the given time.
+// Returns a flat list of filtered videos instead of raw YouTube pagination.
+func (s *YouTubeServiceV3) ListPlaylistVideosAfter(options ytrelay.Options) (resp interface{}, err error) {
+	yt := s.youtubeService
+
+	if isZero(options.PlaylistID) {
+		return nil, fmt.Errorf("parameter \"playlistId\" is mandatory")
+	}
+	if isZero(options.PublishedAfter) {
+		return nil, fmt.Errorf("parameter \"publishedAfter\" is mandatory")
+	}
+
+	threshold, err := time.Parse(time.RFC3339, options.PublishedAfter)
+	if err != nil {
+		return nil, fmt.Errorf("invalid publishedAfter format, expected RFC 3339 (e.g. 2024-01-01T00:00:00Z): %v", err)
+	}
+	threshold = threshold.UTC()
+
+	parts := strings.Split(options.Part, ",")
+	var items []*api.PlaylistItemVideo
+	pageToken := ""
+
+	for {
+		call := yt.PlaylistItems.List(parts)
+		call.PlaylistId(options.PlaylistID)
+		call.MaxResults(50)
+		if pageToken != "" {
+			call.PageToken(pageToken)
+		}
+
+		result, err := call.Do()
+		if err != nil {
+			return nil, fmt.Errorf("failed to list playlist items: %v", err)
+		}
+
+		reachedOldVideos := false
+		for _, item := range result.Items {
+			videoPublishedAt := item.ContentDetails.VideoPublishedAt
+			if videoPublishedAt == "" {
+				continue
+			}
+
+			t, err := time.Parse(time.RFC3339, videoPublishedAt)
+			if err != nil {
+				log.Warnf("failed to parse videoPublishedAt for video %s: %v", item.ContentDetails.VideoId, err)
+				continue
+			}
+
+			if t.UTC().Before(threshold) {
+				reachedOldVideos = true
+				break
+			}
+
+			videoItem := &api.PlaylistItemVideo{
+				VideoID:          item.ContentDetails.VideoId,
+				Title:            item.Snippet.Title,
+				Description:      item.Snippet.Description,
+				VideoPublishedAt: videoPublishedAt,
+				PublishedAt:      item.Snippet.PublishedAt,
+				Thumbnails:       convertThumbnails(item.Snippet.Thumbnails),
+				VideoURL:         fmt.Sprintf("https://www.youtube.com/watch?v=%s", item.ContentDetails.VideoId),
+			}
+			items = append(items, videoItem)
+		}
+
+		if reachedOldVideos || result.NextPageToken == "" {
+			break
+		}
+		pageToken = result.NextPageToken
+	}
+
+	if items == nil {
+		items = []*api.PlaylistItemVideo{}
+	}
+
+	return &api.PlaylistItemListResponse{
+		PlaylistID: options.PlaylistID,
+		Items:      items,
+		TotalItems: len(items),
+	}, nil
+}
+
 // ListPlaylists fetches all playlists for a channel, filters by title keywords (q parameter, comma-separated),
 // fetches the latest update time for each matching playlist, and optionally filters by publishedAfter.
 func (s *YouTubeServiceV3) ListPlaylists(options ytrelay.Options) (resp interface{}, err error) {
