@@ -265,6 +265,16 @@ func Set(r *gin.Engine, appName string, relayService ytrelay.VideoRelay, whiteli
 			return
 		}
 
+		// Check the mandatory parameters
+		if queries.ChannelID == "" {
+			err = fmt.Errorf("channelId is required")
+			apiLogger.Error(err)
+			resp := api.ErrorResp{Error: err.Error()}
+			saveErrCache(cacheConf.IsEnabled, cacheConf, cacheProvider, apiLogger, appName, *c.Request, http.StatusBadRequest, resp)
+			c.AbortWithStatusJSON(http.StatusBadRequest, resp)
+			return
+		}
+
 		// Check whitelist
 		if !whitelist.ValidateChannelID(queries.ChannelID) {
 			err = fmt.Errorf("channelId(%s) is invalid", queries.ChannelID)

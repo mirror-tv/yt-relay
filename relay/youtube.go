@@ -116,12 +116,11 @@ func (s *YouTubeServiceV3) ListPlaylistVideosAfter(options ytrelay.Options) (res
 	}
 	threshold = threshold.UTC()
 
-	parts := strings.Split(options.Part, ",")
 	var items []*api.PlaylistItemVideo
 	pageToken := ""
 
 	for {
-		call := yt.PlaylistItems.List(parts)
+		call := yt.PlaylistItems.List([]string{"snippet", "contentDetails"})
 		call.PlaylistId(options.PlaylistID)
 		call.MaxResults(50)
 		if pageToken != "" {
