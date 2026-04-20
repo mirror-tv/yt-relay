@@ -1,6 +1,7 @@
 appName: "mtv-yt-relay"     # env: APP_NAME
 apiKey: ""                  # env: API_KEY
 cmsUrl: ""                  # env: CMS_URL (CMS GraphQL endpoint for playlist whitelist)
+internalToken: ""           # env: INTERNAL_TOKEN (shared secret for internal service-to-service auth, bypasses playlist whitelist)
 
 cache:
   isEnabled: true                          # env: CACHE_ENABLED (default: false)

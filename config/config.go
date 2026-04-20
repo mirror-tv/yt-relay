@@ -14,14 +14,15 @@ import (
 
 type Conf struct {
 	// AppName is only allowed to have alphanumeric, dash, and dot.
-	AppName    string        `mapstructure:"appName"`
-	Address    string        `mapstructure:"address"`
-	ApiKey     string        `mapstructure:"apiKey"`
-	Cache      Cache         `mapstructure:"cache"`
-	CmsURL     string        `mapstructure:"cmsUrl"`
-	Port       int           `mapstructure:"port"`
-	Redis      *RedisService `mapstructure:"redis"`
-	Whitelists Whitelists    `mapstructure:"whitelists"`
+	AppName       string        `mapstructure:"appName"`
+	Address       string        `mapstructure:"address"`
+	ApiKey        string        `mapstructure:"apiKey"`
+	Cache         Cache         `mapstructure:"cache"`
+	CmsURL        string        `mapstructure:"cmsUrl"`
+	InternalToken string        `mapstructure:"internalToken"`
+	Port          int           `mapstructure:"port"`
+	Redis         *RedisService `mapstructure:"redis"`
+	Whitelists    Whitelists    `mapstructure:"whitelists"`
 }
 
 // Whitelists are maps, key is the whitelist string, value determines if it should be effective
@@ -366,6 +367,7 @@ func Load(configFile string) (*Conf, error) {
 	_ = v.BindEnv("address", "ADDRESS")
 	_ = v.BindEnv("port", "PORT")
 	_ = v.BindEnv("cmsUrl", "CMS_URL")
+	_ = v.BindEnv("internalToken", "INTERNAL_TOKEN")
 	_ = v.BindEnv("cache.isEnabled", "CACHE_ENABLED")
 	_ = v.BindEnv("cache.ttl", "CACHE_TTL")
 	_ = v.BindEnv("cache.errorTtl", "CACHE_ERROR_TTL")

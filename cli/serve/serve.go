@@ -38,7 +38,7 @@ func serveMain(args []string, c cli.Conf) error {
 		return err
 	}
 
-	_ = route.Set(server.Engine, cfg.AppName, relayService, server.APIWhitelist, cfg.Cache, server.Cache)
+	_ = route.Set(server.Engine, cfg.AppName, relayService, server.APIWhitelist, cfg.Cache, server.Cache, cfg.InternalToken)
 
 	return server.Run()
 }

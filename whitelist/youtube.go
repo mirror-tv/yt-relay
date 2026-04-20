@@ -1,6 +1,7 @@
 package whitelist
 
 import (
+	"strings"
 	"sync"
 	"time"
 
@@ -20,7 +21,11 @@ type YouTubeAPI struct {
 }
 
 func (api *YouTubeAPI) ValidateChannelID(channelID string) bool {
-	effective, present := api.Whitelist.ChannelIDs[channelID]
+	if effective, present := api.Whitelist.ChannelIDs[channelID]; present {
+		return effective
+	}
+	// Fallback: viper lowercases map keys when loading from YAML config files
+	effective, present := api.Whitelist.ChannelIDs[strings.ToLower(channelID)]
 	return present && effective
 }
 
